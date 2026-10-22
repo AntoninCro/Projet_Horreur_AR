@@ -1,0 +1,56 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3d2cd0399378d8d40a3620d25c7f9f2e, type: 3}
+  m_Name: HorrorAssets
+  m_EditorClassIdentifier: HorrorMR::HorrorMR.HorrorAssets
+  monsterPrefab: {fileID: 5706012638654743579, guid: aa34b6a69d2986647bc9bc169b97cb89, type: 3}
+  gunPrefab: {fileID: 4425762493331275685, guid: 890beeafa8f2ba44ebbb533a9598ae25, type: 3}
+  flashlightPrefab: {fileID: 7390201299180973765, guid: 111652f3ac5a30b41abe33301a91fd4f, type: 3}
+  ambience: {fileID: 8300000, guid: 22363ffd49bc9b645823fc38e73f19f1, type: 3}
+  heartbeat: {fileID: 8300000, guid: ea22d99814bc40642b0e0800b49d6a80, type: 3}
+  startSting: {fileID: 8300000, guid: bdc9d8a6fe1c44640a2e6743dc35d3b3, type: 3}
+  alarm: {fileID: 8300000, guid: da6e0b240f9b5424c82e57bf3f18b420, type: 3}
+  tick: {fileID: 8300000, guid: 584ec7ca6d029af49a50bb081ccf26a3, type: 3}
+  victory: {fileID: 8300000, guid: 7634a40ac714b334ba4d18c2930e3c96, type: 3}
+  spottedSting: {fileID: 8300000, guid: 8c100ab2636f1d8459ad59264b9d7633, type: 3}
+  musicBox: {fileID: 8300000, guid: 11ac40af0fa70cd47b32a1ec313b89af, type: 3}
+  growl: {fileID: 8300000, guid: 16b7f2f42f24e7d49b86cdeb81fb7ef6, type: 3}
+  whisper: {fileID: 8300000, guid: b8ae8c2d6499fe049ae522c1a7d0c475, type: 3}
+  spottedScream: {fileID: 8300000, guid: 81fac690096eb8443b74d1ad5ae7b593, type: 3}
+  jumpscareScream: {fileID: 8300000, guid: da2bc40eba855ab4992c3f7f5e75df32, type: 3}
+  attackSwoosh: {fileID: 8300000, guid: 30d46307cd2ceae42ae546965c02095d, type: 3}
+  monsterHurt: {fileID: 8300000, guid: 1dea7ad11b2198e48bb75a7da545238e, type: 3}
+  monsterSqueak: {fileID: 8300000, guid: c9a0d5b89a0fce640a6e48ba86cbf8cd, type: 3}
+  monsterDeath: {fileID: 8300000, guid: 0fd83e8dee51fdc4cb53d3ebe9ddada7, type: 3}
+  fabricRip: {fileID: 8300000, guid: a43f415fe38589e44b66ae67b15eaa66, type: 3}
+  footsteps:
+  - {fileID: 8300000, guid: 7306d76d50d63f24697b8f272f70cc76, type: 3}
+  - {fileID: 8300000, guid: 87f263a7291069b4d9b80493166d782a, type: 3}
+  - {fileID: 8300000, guid: a73f75ea490ab7e4282bcc2ebb7b556b, type: 3}
+  playerHit: {fileID: 8300000, guid: 1cbfbdf4ed95bef4eb615a5c75186ee8, type: 3}
+  gunshot: {fileID: 8300000, guid: 22508b01a30a66346b29bb9ae64b9ce8, type: 3}
+  gunPickup: {fileID: 8300000, guid: 33c057b122d993c48833016ac44f4652, type: 3}
+  gunBeacon: {fileID: 8300000, guid: 7935f0fa5b46f5146a106a5f5a5d887e, type: 3}
+  flashlightClick: {fileID: 8300000, guid: b42f1d57394243e47a75bcf8819b500a, type: 3}
+  bulletImpact: {fileID: 8300000, guid: e795cf6197c9428408c7e9c6bbe3e282, type: 3}
+  bloodParticle: {fileID: 2100000, guid: 175f3d8b65542b448878bd5aea6a7228, type: 2}
+  stuffingParticle: {fileID: 2100000, guid: b50c5f55d1cb643418d3aa6dafc249e2, type: 2}
+  sparkParticle: {fileID: 2100000, guid: cceaba6984e7ce148a1e2241edf4576f, type: 2}
+  muzzleFlash: {fileID: 2100000, guid: 3a6be3732e8fcae4cac547e78e6b800e, type: 2}
+  bloodPool: {fileID: 2100000, guid: 4322ec9d0273b744c841f5fb1041789d, type: 2}
+  beacon: {fileID: 2100000, guid: ab6dd62aa99e13c4a850b61e02962aae, type: 2}
+  laser: {fileID: 2100000, guid: 1aabc0b2c50411f4fa733e9359215367, type: 2}
+  arrow: {fileID: 2100000, guid: 858f4506965254542b838def0504d9bd, type: 2}
+  roomDarkness: {fileID: 2100000, guid: 44639adba4c7fbc49bbf31af2adffcd6, type: 2}
+  darknessDome: {fileID: 2100000, guid: 675b027f968e01e4583d2cd0164cd8de, type: 2}
+  screenOverlay: {fileID: 2100000, guid: b6df313ceb000ba4eaecc69ed0cadf94, type: 2}
+  font: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}

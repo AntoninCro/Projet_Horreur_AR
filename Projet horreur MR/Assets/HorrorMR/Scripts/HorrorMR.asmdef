@@ -1,0 +1,29 @@
+{
+    "name": "HorrorMR",
+    "rootNamespace": "HorrorMR",
+    "references": [
+        "Unity.InputSystem",
+        "Unity.XR.ARFoundation",
+        "Unity.XR.ARSubsystems",
+        "Unity.XR.CoreUtils",
+        "Unity.XR.Interaction.Toolkit",
+        "Unity.TextMeshPro",
+        "Unity.XR.OpenXR",
+        "Unity.XR.MetaOpenXR"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [
+        {
+            "name": "com.unity.xr.meta-openxr",
+            "expression": "2.0.0",
+            "define": "HORROR_META_OPENXR"
+        }
+    ],
+    "noEngineReferences": false
+}
