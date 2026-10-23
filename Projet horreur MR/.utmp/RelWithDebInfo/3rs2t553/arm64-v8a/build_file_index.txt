@@ -1,0 +1,2 @@
+C:\Users\romle\Desktop\cours anto\introduction a la VR\Projet horreur MR\Library\Bee\Android\Prj\IL2CPP\Gradle\unityLibrary\src\main\cpp\CMakeLists.txt
+C:\Users\romle\Desktop\cours anto\introduction a la VR\Projet horreur MR\Library\Bee\Android\Prj\IL2CPP\Gradle\unityLibrary\src\main\cpp\GameActivity\CMakeLists.txt

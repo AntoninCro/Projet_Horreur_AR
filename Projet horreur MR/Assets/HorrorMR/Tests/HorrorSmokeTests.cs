@@ -79,8 +79,34 @@ namespace HorrorMR.Tests
                 gm.RightHand.followCameraWithoutController = false;
 
                 yield return WaitUntil(() => gm.Phase == GamePhase.Menu, 40f, "menu");
-                Assert.IsTrue(gm.Room.NavMeshReady, "NavMesh de secours non construit");
+                Assert.IsTrue(gm.Room.NavMeshReady, "NavMesh non construit");
                 Debug.Log($"[Test] Menu atteint, sol {gm.Room.FloorY:F2}, secours {gm.Room.UsedFallback}, surface {gm.Room.WalkableArea:F1} m²");
+
+                // --- Scan manuel simulé : 3 coins (pièce de 8 x 6 m) puis 2 meubles, puis « terminer » ---
+                gm.persistRoom = false;
+                var h = gm.player.HeadPosition;
+                float y = gm.Room.FloorY + RoomLayout.ControllerRestHeight;
+                float x0 = h.x - 4f, z0 = h.z - 3f;
+                var inputs = gm.calibrator.testInputs;
+                inputs.Enqueue(new Vector3(x0, y, z0));
+                inputs.Enqueue(new Vector3(x0 + 8f, y, z0));
+                inputs.Enqueue(new Vector3(x0 + 8f, y, z0 + 6f));
+                inputs.Enqueue(new Vector3(x0 + 0.3f, y, z0 + 0.3f));
+                inputs.Enqueue(new Vector3(x0 + 1.8f, gm.Room.FloorY + 0.79f, z0 + 1.3f));
+                inputs.Enqueue(new Vector3(x0 + 6.5f, y, z0 + 4.5f));
+                inputs.Enqueue(new Vector3(x0 + 7.7f, gm.Room.FloorY + 1.0f, z0 + 5.7f));
+                inputs.Enqueue(null);
+                gm.RescanRoom();
+                yield return WaitUntil(() => gm.Phase == GamePhase.Calibration, 5f, "début du scan manuel");
+                yield return WaitUntil(() => gm.Phase == GamePhase.Menu, 30f, "fin du scan manuel");
+                Assert.IsTrue(gm.Room.UsingManualRoom, "la pièce manuelle n'est pas utilisée");
+                Assert.AreEqual(2, gm.manualRoom.Layout.furniture.Count, "nombre de meubles");
+                Assert.AreEqual(8f, gm.manualRoom.Layout.Width, 0.05f, "largeur de la pièce");
+                Assert.AreEqual(6f, gm.manualRoom.Layout.depth, 0.05f, "profondeur de la pièce");
+                Assert.AreEqual(0.75f, gm.manualRoom.Layout.furniture[0].size.y, 0.03f, "hauteur de la table");
+                Assert.IsTrue(gm.Room.NavMeshReady, "NavMesh de la pièce manuelle");
+                Debug.Log($"[Test] Scan manuel : {gm.manualRoom.Layout.Width:F1} x {gm.manualRoom.Layout.depth:F1} m, " +
+                          $"{gm.manualRoom.Layout.furniture.Count} meubles, surface marchable {gm.Room.WalkableArea:F1} m²");
                 yield return new WaitForSeconds(1f);
                 Capture("1_menu");
 
@@ -111,6 +137,7 @@ namespace HorrorMR.Tests
 
                 yield return WaitUntil(() => gm.Phase == GamePhase.GunHunt, 15f, "fin du minuteur");
                 Assert.AreEqual(Gun.GunState.Available, gm.Gun.State, "pistolet non placé");
+                Assert.Greater(gm.Gun.transform.position.y - gm.Room.FloorY, 0.6f, "le pistolet devrait être sur une table");
                 yield return new WaitForSeconds(0.5f);
                 Capture("4_arme");
                 gm.Gun.Grab(gm.RightHand, Hand.Right);

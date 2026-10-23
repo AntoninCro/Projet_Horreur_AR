@@ -18,6 +18,8 @@ namespace HorrorMR
         static InputAction s_RightGrip;
         static InputAction s_LeftPrimary;
         static InputAction s_RightPrimary;
+        static InputAction s_LeftSecondary;
+        static InputAction s_RightSecondary;
         static InputAction s_LeftHaptic;
         static InputAction s_RightHaptic;
         static InputAction s_DebugSkip;
@@ -35,6 +37,8 @@ namespace HorrorMR
             s_RightGrip = Button("<XRController>{RightHand}/gripPressed", "<XRController>{RightHand}/{GripButton}", "<Keyboard>/g");
             s_LeftPrimary = Button("<XRController>{LeftHand}/primaryButton", "<XRController>{LeftHand}/{PrimaryButton}");
             s_RightPrimary = Button("<XRController>{RightHand}/primaryButton", "<XRController>{RightHand}/{PrimaryButton}", "<Keyboard>/enter");
+            s_LeftSecondary = Button("<XRController>{LeftHand}/secondaryButton", "<XRController>{LeftHand}/{SecondaryButton}");
+            s_RightSecondary = Button("<XRController>{RightHand}/secondaryButton", "<XRController>{RightHand}/{SecondaryButton}", "<Keyboard>/backspace");
             s_DebugSkip = Button("<Keyboard>/k");
 
             s_LeftHaptic = new InputAction("LeftHaptic", InputActionType.PassThrough, "<XRController>{LeftHand}/{Haptic}");
@@ -58,6 +62,9 @@ namespace HorrorMR
         public static bool GripHeld(Hand hand) => (hand == Hand.Left ? s_LeftGrip : s_RightGrip).IsPressed();
         public static bool PrimaryPressed(Hand hand) => (hand == Hand.Left ? s_LeftPrimary : s_RightPrimary).WasPressedThisFrame();
         public static bool PrimaryHeld(Hand hand) => (hand == Hand.Left ? s_LeftPrimary : s_RightPrimary).IsPressed();
+
+        public static bool SecondaryPressed(Hand hand) => (hand == Hand.Left ? s_LeftSecondary : s_RightSecondary).WasPressedThisFrame();
+        public static bool AnySecondaryPressed => SecondaryPressed(Hand.Left) || SecondaryPressed(Hand.Right);
 
         public static bool AnyTriggerPressed => TriggerPressed(Hand.Left) || TriggerPressed(Hand.Right);
         public static bool AnyPrimaryPressed => PrimaryPressed(Hand.Left) || PrimaryPressed(Hand.Right);

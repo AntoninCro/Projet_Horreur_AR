@@ -1,0 +1,10 @@
+# ninja log v5
+42	1237	8144407167278936	GameActivity/CMakeFiles/game.dir/UGAInputKeyEvent.cpp.o	9be7ad548d0901b5
+26	1252	8144407167437434	GameActivity/CMakeFiles/game.dir/UGAEntry.cpp.o	79869099c551d15e
+1	1272	8144407167668325	GameActivity/CMakeFiles/game.dir/UGAConfiguration.cpp.o	184606ae888f1fa8
+59	1283	8144407167785968	GameActivity/CMakeFiles/game.dir/UGAInputMotionEvent.cpp.o	73e7dbc82b4e557a
+10	1350	8144407168416233	GameActivity/CMakeFiles/game.dir/UGADebug.cpp.o	fff0f6f608a83e52
+50	1405	8144407168969284	GameActivity/CMakeFiles/game.dir/UGASoftKeyboard.cpp.o	bef471e831b26bd7
+34	1533	8144407170265614	GameActivity/CMakeFiles/game.dir/UGAInput.cpp.o	2ab37f8ee2b25b81
+17	1657	8144407171472995	GameActivity/CMakeFiles/game.dir/UGAApplication.cpp.o	c102e9cd1c283219
+1657	1790	8144407172805815	C:/Users/romle/Desktop/cours anto/introduction a la VR/Projet horreur MR/Library/Bee/Android/Prj/IL2CPP/Gradle/unityLibrary/build/intermediates/cxx/RelWithDebInfo/3rs2t553/obj/arm64-v8a/libgame.so	6c8f0ef5554648bb

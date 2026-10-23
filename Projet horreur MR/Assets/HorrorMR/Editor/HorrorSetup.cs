@@ -34,7 +34,7 @@ namespace HorrorMR.Editor
         const string k_AlienMaterial = "Assets/Alien_Toys/Alien_Pack/Materials/Standart/Alien3_MAT.mat";
         const string k_MRSetupPrefab = "Assets/MRTemplateAssets/Prefabs/MR Interaction Setup.prefab";
         const string k_Font = "Assets/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF.asset";
-        const float k_MonsterHeight = 1.95f;
+        const float k_MonsterHeight = 2.4f;
 
         [MenuItem("Horreur MR/Tout configurer (assets + scène)", priority = 0)]
         public static void SetupAll()
@@ -476,7 +476,7 @@ namespace HorrorMR.Editor
 
             var agent = root.AddComponent<NavMeshAgent>();
             agent.radius = 0.25f;
-            agent.height = 1.9f;
+            agent.height = 2.3f;
             agent.baseOffset = 0f;
             agent.speed = 0.75f;
             agent.angularSpeed = 220f;
@@ -609,6 +609,19 @@ namespace HorrorMR.Editor
                         feature.enabled = true;
                         EditorUtility.SetDirty(feature);
                         Debug.Log($"[Horreur] OpenXR : 'Meta Quest: Meshing' activé pour {group}.");
+                    }
+                    // Guardian masqué dès le démarrage (autorisé par Meta pour les applis en passthrough).
+                    if (feature != null && feature.GetType().Name == "BoundaryVisibilityFeature")
+                    {
+                        feature.enabled = true;
+                        var so = new SerializedObject(feature);
+                        var suppress = so.FindProperty("m_SuppressVisibility");
+                        if (suppress != null)
+                        {
+                            suppress.boolValue = true;
+                            so.ApplyModifiedPropertiesWithoutUndo();
+                        }
+                        EditorUtility.SetDirty(feature);
                     }
                 }
                 EditorUtility.SetDirty(settings);
@@ -760,7 +773,19 @@ namespace HorrorMR.Editor
             hud.arrowMaterial = m.arrow;
             hud.font = assets.font;
 
+            var manualGo = new GameObject("Piece manuelle");
+            var manualRoom = manualGo.AddComponent<ManualRoom>();
+            manualRoom.darknessMaterial = m.room;
+            manualRoom.outlineMaterial = m.arrow;
+            var calibrator = game.AddComponent<RoomCalibrator>();
+            var anchors = setup.GetComponentInChildren<ARAnchorManager>(true);
+            if (anchors != null)
+                anchors.enabled = true;
+
             var manager = game.AddComponent<GameManager>();
+            manager.manualRoom = manualRoom;
+            manager.calibrator = calibrator;
+            manager.anchorManager = anchors;
             manager.assets = assets;
             manager.xrOrigin = origin;
             manager.arSession = session;
@@ -786,7 +811,7 @@ namespace HorrorMR.Editor
             EditorBuildSettings.scenes = scenes.ToArray();
 
             Debug.Log($"[Horreur] Scène créée : plans {(planes != null ? "ok" : "ABSENT")}, meubles {(boxes != null ? "ok" : "ABSENT")}, " +
-                      $"session {(session != null ? "ok" : "ABSENT")}, caméra {cam.name}.");
+                      $"session {(session != null ? "ok" : "ABSENT")}, ancres {(anchors != null ? "ok" : "ABSENT")}, caméra {cam.name}.");
         }
 
         static HandPose CreateHand(Transform parent, string name, Hand hand)

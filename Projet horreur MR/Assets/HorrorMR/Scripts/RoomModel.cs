@@ -16,6 +16,10 @@ namespace HorrorMR
         public ARPlaneManager planeManager;
         public ARBoundingBoxManager boundingBoxManager;
         public ARMeshManager meshManager;
+        [Tooltip("Pièce scannée à la main : prioritaire sur les données du Quest quand elle existe.")]
+        public ManualRoom manualRoom;
+
+        public bool UsingManualRoom => manualRoom != null && manualRoom.HasRoom;
 
         [Header("NavMesh (taille du monstre)")]
         public float agentRadius = 0.25f;
@@ -104,6 +108,19 @@ namespace HorrorMR
             var sources = new List<NavMeshBuildSource>();
             m_CollectHasBounds = false;
             m_CollectBounds = new Bounds();
+
+            // 0. Pièce scannée à la main : elle remplace tout le reste.
+            if (UsingManualRoom)
+            {
+                floorPlane = null;
+                floorY = manualRoom.FloorY;
+                UsedFallback = false;
+                manualRoom.CollectNavSources(sources);
+                Encapsulate(manualRoom.WorldBounds);
+                m_CollectBounds.Expand(new Vector3(1f, 1f, 1f));
+                bounds = m_CollectBounds;
+                return sources;
+            }
 
             // 1. Maillage complet de la pièce (Quest 3).
             if (meshManager != null && meshManager.meshes != null)
@@ -222,7 +239,7 @@ namespace HorrorMR
         public IEnumerator BuildNavMesh(Vector3 playerHead)
         {
             yield return BuildNavMeshOnce(playerHead, false);
-            if (!UsedFallback && m_FloorTotalArea < minWalkableArea)
+            if (!UsedFallback && !UsingManualRoom && m_FloorTotalArea < minWalkableArea)
             {
                 Debug.LogWarning($"[Horreur] Surface marchable trop petite ({m_FloorTotalArea:F1} m²) : ajout de la dalle de secours.");
                 yield return BuildNavMeshOnce(playerHead, true);
@@ -254,7 +271,7 @@ namespace HorrorMR
             while (!op.isDone)
                 yield return null;
 
-            ComputeFloorTriangles(floorPlane != null ? floorY : (float?)null);
+            ComputeFloorTriangles(floorPlane != null || UsingManualRoom ? floorY : (float?)null);
             RoomBounds = bounds;
             NavMeshReady = m_FloorTotalArea > 0.5f;
             Debug.Log($"[Horreur] NavMesh prêt : {sources.Count} sources, sol à {FloorY:F2} m, surface marchable {m_FloorTotalArea:F1} m², " +
@@ -421,6 +438,8 @@ namespace HorrorMR
         {
             var candidates = new List<Vector3>();
             var playerFloor = PlayerFloorPosition(head);
+            if (UsingManualRoom && manualRoom.TryGetTableSpot(playerFloor, out var tableSpot))
+                return tableSpot;
 
             bool GoodDistance(Vector3 p)
             {

@@ -36,8 +36,8 @@ namespace HorrorMR
         public float searchDuration = 6f;
 
         [Header("Attaque")]
-        public float attackRange = 1.5f;
-        public float hitRange = 2.0f;
+        public float attackRange = 0.95f;
+        public float hitRange = 1.3f;
         public float strikeTime = 0.5f;
         public float recoverTime = 1.6f;
 
@@ -78,7 +78,7 @@ namespace HorrorMR
             m_Assets = assets;
             m_Agent = GetComponent<NavMeshAgent>();
             m_Agent.radius = 0.25f;
-            m_Agent.height = 1.9f;
+            m_Agent.height = 2.3f;
             m_Agent.angularSpeed = 220f;
             m_Agent.acceleration = 8f;
             m_Agent.autoBraking = true;
@@ -541,7 +541,7 @@ namespace HorrorMR
             while (State == MonsterState.Jumpscare)
             {
                 t += Time.deltaTime;
-                float distance = Mathf.Lerp(1.0f, 0.5f, Mathf.Clamp01(t / 0.12f));
+                float distance = Mathf.Lerp(1.2f, 0.65f, Mathf.Clamp01(t / 0.12f));
                 var targetFace = head.position + flatForward * distance;
                 transform.rotation = Quaternion.LookRotation(-flatForward, Vector3.up);
                 var eyeOffset = plush.EyePosition - transform.position;

@@ -1,17 +1,17 @@
 # Prêt ou pas, ils arrivent — horreur en réalité mixte (Meta Quest 3)
 
-Une peluche géante (Alien 3, style horror plush, ~1,95 m) rôde dans ta vraie pièce.
+Une peluche géante (Alien 3, style horror plush, ~2,40 m) rôde dans ta vraie pièce.
 Survis au minuteur en te cachant derrière les meubles, puis trouve le pistolet et abats-la.
 
 ## Déroulé d'une partie
 
-1. **Scan** : le jeu lit la pièce scannée par le Quest (sol, murs, tables, maillage 3D).
-   Si rien n'est scanné, il ouvre la *Configuration de l'espace* du casque.
-2. **Menu** : avertissement + gâchette pour commencer.
+1. **Pièce** : le jeu recharge la pièce enregistrée (ancre spatiale du Quest). Sinon il lance le **scan manuel** (voir plus bas).
+   Le Guardian est masqué automatiquement pour pouvoir circuler dans toute la salle.
+2. **Menu** : avertissement + gâchette pour commencer (B / Y : refaire le scan).
 3. **Les lumières s'éteignent** : la pièce réelle devient presque noire, la lampe torche s'allume (main gauche).
-4. **Survie (8 min 40 s)** : la peluche erre (debout ou accroupie) en jouant sa boîte à musique.
+4. **Survie (1 min 30 s)** : la peluche erre (debout ou accroupie) en jouant sa boîte à musique.
    Si elle te voit, elle hurle et te poursuit. Les vrais meubles bloquent sa vue : accroupis-toi derrière.
-   Elle te frappe si elle est à portée. L'écran devient de plus en plus rouge. **3 coups = mort** (jumpscare).
+   Elle te frappe au corps à corps. L'écran devient de plus en plus rouge. **3 coups = mort** (jumpscare).
 5. **Trouve l'arme** : un pistolet apparaît sur une table (faisceau lumineux, bip 3D, flèche au sol).
 6. **Tue-la** : 5 balles. Elle s'effondre comme une peluche vide, la pièce se rallume.
 7. **A / X** : rejouer.
@@ -27,6 +27,21 @@ Survis au minuteur en te cachant derrière les meubles, puis trouve le pistolet 
 | **Test** : passer le minuteur | Maintenir les deux grips + A et X (ou touche **K** dans l'éditeur) |
 
 Lampe éteinte = la peluche te voit moins loin. Accroupi = encore moins.
+
+## Scan manuel de la pièce
+
+Le scan du Quest ne couvre qu'une partie d'une grande salle (et la version actuelle du casque ne transmet pas ses surfaces au jeu) :
+on mesure donc la pièce à la main, en **posant la manette** sur les coins (plus précis que viser).
+
+1. **Pièce (3 points)** : manette au sol dans un coin (**coin 1**, à retenir) → gâchette ; au sol dans le **coin 2**, au bout du même mur → gâchette ;
+   au sol dans un coin du **mur d'en face** → gâchette.
+2. **Meubles (2 points chacun)** : manette au sol contre un coin du meuble → gâchette ; puis **sur le dessus**, au coin opposé en diagonale → gâchette.
+   Une rangée de tables collées peut être saisie comme un seul meuble. Les boîtes s'affichent en orange.
+3. **A / X** : terminer. **B / Y** : annuler le dernier point ou le dernier meuble.
+
+La pièce est enregistrée dans le casque avec une ancre spatiale et rechargée au lancement suivant.
+Si le casque ne la retrouve pas : gâchette = recaler en touchant les coins 1 et 2, ou B / Y = tout rescanner.
+Pour refaire le scan à tout moment : **B / Y** au menu.
 
 ## Tester sans casque (dans l'éditeur)
 
@@ -48,8 +63,9 @@ Contrôles automatiques :
 3. *File → Build Profiles* → **Android** → *Switch Platform*.
 4. Casque en **mode développeur** (application Meta Horizon sur téléphone), branché en USB-C, autoriser le débogage USB dans le casque.
 5. *Build Profiles → Android → Run Device* : choisir le Quest 3 → **Build And Run**.
-6. Dans la salle : *Paramètres → Environnement physique → Configuration de l'espace* pour scanner la pièce et ses tables.
-   Au premier lancement, accepter la permission « données spatiales ».
+   Ou bien : menu **Horreur MR → Compiler l'APK Quest** (crée `Builds/PretOuPas.apk`), puis l'installer avec
+   `adb install -r Builds/PretOuPas.apk` (adb est dans le module Android de Unity).
+6. Au premier lancement, accepter la permission « données spatiales », puis faire le scan manuel de la salle.
 
 ## Organisation du code (`Assets/HorrorMR`)
 
@@ -57,6 +73,7 @@ Contrôles automatiques :
 |---|---|
 | `Scripts/GameManager.cs` | Déroulé de la partie (scan, menu, survie, arme, victoire, mort, rejouer) |
 | `Scripts/RoomModel.cs` | Lit la pièce (plans, meubles, maillage), construit le NavMesh, trouve les points d'apparition et la table du pistolet |
+| `Scripts/RoomCalibrator.cs`, `ManualRoom.cs`, `RoomLayout.cs` | Scan manuel à la manette, pièce virtuelle (sol, murs, meubles), sauvegarde + ancre spatiale |
 | `Scripts/MonsterAI.cs` | IA : patrouille, vue (cône + lancer de rayons sur la vraie pièce), poursuite, attaque, recherche, mort, jumpscare |
 | `Scripts/PlushAnimator.cs` | Animations procédurales du squelette Alien3 (marche dandinante, accroupi, course bras tendus, coups, mort) |
 | `Scripts/Gun.cs`, `Flashlight.cs` | Pistolet (snap dans la main, tir, aide à la visée) et lampe torche |

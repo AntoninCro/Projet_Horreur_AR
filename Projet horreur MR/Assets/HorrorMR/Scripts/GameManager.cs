@@ -1,8 +1,10 @@
+using System;
 using System.Collections;
 using Unity.XR.CoreUtils;
 using UnityEngine;
 using UnityEngine.AI;
 using UnityEngine.XR.ARFoundation;
+using UnityEngine.XR.ARSubsystems;
 using UnityEngine.XR.Interaction.Toolkit.Interactors;
 using UnityEngine.XR.Interaction.Toolkit.Locomotion;
 #if UNITY_ANDROID && !UNITY_EDITOR
@@ -11,7 +13,7 @@ using UnityEngine.Android;
 
 namespace HorrorMR
 {
-    public enum GamePhase { Boot, Scanning, Menu, Intro, Survival, GunHunt, Armed, Victory, GameOver }
+    public enum GamePhase { Boot, Scanning, Calibration, Menu, Intro, Survival, GunHunt, Armed, Victory, GameOver }
 
     /// <summary>
     /// Déroulé de "Prêt ou pas, ils arrivent" :
@@ -38,10 +40,18 @@ namespace HorrorMR
         public HUD hud;
         public HorrorAudio horrorAudio;
 
+        [Header("Pièce scannée à la main")]
+        public ManualRoom manualRoom;
+        public RoomCalibrator calibrator;
+        public ARAnchorManager anchorManager;
+        [Tooltip("Enregistrer la pièce (fichier + ancre spatiale) pour ne pas la rescanner à chaque partie.")]
+        public bool persistRoom = true;
+        [Tooltip("Temps d'attente des données de pièce du Quest avant de passer au scan manuel (s).")]
+        public float questRoomWait = 5f;
+
         [Header("Partie")]
-        public float survivalSeconds = 520f;
+        public float survivalSeconds = 90f;
         public float minSpawnDistance = 5f;
-        public float roomScanTimeout = 12f;
         [Tooltip("Pour tester : touche K (éditeur) ou A + X avec les deux grips pour passer le minuteur.")]
         public bool allowDebugSkip = true;
 
@@ -67,6 +77,8 @@ namespace HorrorMR
         bool m_Rebuilding;
         float m_NextRoomCheck;
         Coroutine m_RoundRoutine;
+        RoomLayout m_PendingLayout;
+        Pose m_PendingFrame;
         string m_PhaseMessage = "";
         Color m_PhaseColor = Color.white;
 
@@ -103,15 +115,13 @@ namespace HorrorMR
             hud.Show(k_Title, "Analyse de la pièce…", "");
             horrorAudio.SetAmbience(0.25f);
 
+            if (calibrator != null)
+                calibrator.Init(this);
+
             yield return RequestScenePermission();
-            yield return WaitForRoom();
-
-            float originY = xrOrigin != null ? xrOrigin.transform.position.y : 0f;
-            room.SetFallbackFloor(originY);
-            room.RefreshSurfaceRendering();
-            hud.SetMessage("Préparation de la pièce…", HUD.White);
-            yield return room.BuildNavMesh(player.HeadPosition);
-
+            SuppressBoundary();
+            yield return PrepareRoom();
+            yield return BuildRoomNavMesh();
             EnterMenu();
         }
 
@@ -156,44 +166,285 @@ namespace HorrorMR
             if (room.meshManager != null) { room.meshManager.enabled = false; room.meshManager.enabled = true; }
         }
 
-        IEnumerator WaitForRoom()
+        IEnumerator BuildRoomNavMesh()
         {
-            float start = Time.time;
-            float deadline = start + roomScanTimeout;
-            float firstDataTime = -1f;
-            bool captureRequested = false;
+            float originY = xrOrigin != null ? xrOrigin.transform.position.y : 0f;
+            room.SetFallbackFloor(originY);
+            room.RefreshSurfaceRendering();
+            hud.Show(k_Title, "Préparation de la pièce…", "");
+            yield return room.BuildNavMesh(player.HeadPosition);
+        }
 
+        /// <summary>Pièce enregistrée, sinon données du Quest, sinon scan manuel.</summary>
+        IEnumerator PrepareRoom()
+        {
+            if (m_PendingLayout != null)
+            {
+                ApplyManualRoom(m_PendingLayout, m_PendingFrame, null);
+                m_PendingLayout = null;
+                yield break;
+            }
+
+            if (manualRoom != null && RoomLayout.Exists)
+            {
+                var saved = RoomLayout.Load();
+                if (saved != null)
+                {
+                    yield return LoadSavedRoom(saved);
+                    if (room.UsingManualRoom)
+                        yield break;
+                }
+            }
+
+            yield return WaitForQuestRoom();
+            if (!room.HasRoomData && !m_SkipScan && calibrator != null)
+                yield return ScanRoom();
+        }
+
+        IEnumerator WaitForQuestRoom()
+        {
+            float deadline = Time.time + questRoomWait;
+            float firstDataTime = -1f;
             while (Time.time < deadline && !m_SkipScan)
             {
                 if (room.HasRoomData)
                 {
                     if (firstDataTime < 0f)
+                    {
                         firstDataTime = Time.time;
+                        deadline = Time.time + 4f;
+                    }
                     // On laisse un peu de temps au maillage et aux meubles d'arriver après le sol.
                     if (Time.time - firstDataTime > (room.MeshCount > 0 ? 1.5f : 3f))
                         yield break;
-                    hud.SetMessage($"Analyse de la pièce…\n{room.PlaneCount} surfaces, {room.BoxCount} meubles, maillage : {(room.MeshCount > 0 ? "oui" : "non")}", HUD.White);
                 }
-                else if (!captureRequested && Time.time - start > 5f)
-                {
-                    captureRequested = true;
-                    deadline = Time.time + 90f;
-                    RequestSceneCapture();
-                    hud.Show(k_Title, "Aucune pièce scannée.\nFais le scan de la pièce (Configuration de l'espace) puis reviens ici.",
-                        "Gâchette : jouer sans scan (déconseillé)", HUD.Orange);
-                }
-
-                if (captureRequested && HorrorInput.AnyTriggerPressed)
-                    m_SkipScan = true;
                 yield return null;
             }
         }
 
-        void RequestSceneCapture()
+        // ------------------------------------------------------------------------------------------
+        // Pièce scannée à la main : scan, sauvegarde (ancre spatiale), chargement, recalage
+        // ------------------------------------------------------------------------------------------
+
+        /// <summary>Tests automatiques : pièce imposée, sans scan ni sauvegarde.</summary>
+        public void UseRoomForTesting(RoomLayout layout, Pose frame)
+        {
+            m_PendingLayout = layout;
+            m_PendingFrame = frame;
+        }
+
+        IEnumerator ScanRoom()
+        {
+            var previous = Phase;
+            Phase = GamePhase.Calibration;
+            flashlight.SetOn(false, false);
+            darkness.SetImmediate(0f);
+            if (manualRoom != null && manualRoom.HasRoom)
+                manualRoom.Clear();
+            RoomLayout layout = null;
+            var frame = default(Pose);
+            yield return calibrator.RunFullScan((l, f) => { layout = l; frame = f; });
+            yield return SaveAndApplyRoom(layout, frame);
+            Phase = previous;
+        }
+
+        IEnumerator SaveAndApplyRoom(RoomLayout layout, Pose frame)
+        {
+            Transform anchorTransform = null;
+            if (persistRoom)
+            {
+                hud.Show(k_Title, "Enregistrement de la pièce…", "");
+                ARAnchor anchor = null;
+                yield return CreatePersistentAnchor(frame, layout, a => anchor = a);
+                anchorTransform = anchor != null ? anchor.transform : null;
+                layout.lastFramePosition = frame.position;
+                layout.lastFrameRotation = frame.rotation;
+                try
+                {
+                    layout.Save();
+                    Debug.Log("[Horreur] Pièce enregistrée : " + RoomLayout.FilePath);
+                }
+                catch (Exception e)
+                {
+                    Debug.LogWarning("[Horreur] Impossible d'enregistrer la pièce : " + e.Message);
+                }
+            }
+            ApplyManualRoom(layout, frame, anchorTransform);
+        }
+
+        bool AnchorsAvailable => anchorManager != null && anchorManager.enabled && anchorManager.subsystem != null && anchorManager.subsystem.running;
+
+        IEnumerator CreatePersistentAnchor(Pose frame, RoomLayout layout, Action<ARAnchor> done)
+        {
+            if (!AnchorsAvailable)
+            {
+                done(null);
+                yield break;
+            }
+            var add = anchorManager.TryAddAnchorAsync(frame).GetAwaiter();
+            while (!add.IsCompleted)
+                yield return null;
+            var added = add.GetResult();
+            if (!added.status.IsSuccess() || added.value == null)
+            {
+                Debug.LogWarning("[Horreur] Création de l'ancre impossible : " + added.status);
+                done(null);
+                yield break;
+            }
+            var anchor = added.value;
+
+            var descriptor = anchorManager.descriptor;
+            if (descriptor != null && descriptor.supportsSaveAnchor)
+            {
+                if (descriptor.supportsEraseAnchor && !string.IsNullOrEmpty(layout.anchorGuid) && Guid.TryParse(layout.anchorGuid, out var oldGuid))
+                {
+                    var erase = anchorManager.TryEraseAnchorAsync(new UnityEngine.XR.ARSubsystems.SerializableGuid(oldGuid)).GetAwaiter();
+                    float timeout = Time.time + 3f;
+                    while (!erase.IsCompleted && Time.time < timeout)
+                        yield return null;
+                    if (erase.IsCompleted)
+                        erase.GetResult();
+                }
+                var save = anchorManager.TrySaveAnchorAsync(anchor).GetAwaiter();
+                while (!save.IsCompleted)
+                    yield return null;
+                var saved = save.GetResult();
+                if (saved.status.IsSuccess())
+                    layout.anchorGuid = saved.value.guid.ToString();
+                else
+                    Debug.LogWarning("[Horreur] Sauvegarde de l'ancre impossible : " + saved.status);
+            }
+            done(anchor);
+        }
+
+        IEnumerator LoadSavedRoom(RoomLayout layout)
+        {
+            hud.Show(k_Title, "Chargement de la pièce enregistrée…", "");
+            // Le sous-système d'ancres démarre avec la session XR.
+            float wait = Time.time + 4f;
+            while (!AnchorsAvailable && Time.time < wait)
+                yield return null;
+
+            Pose? frame = null;
+            Transform anchorTransform = null;
+            var descriptor = AnchorsAvailable ? anchorManager.descriptor : null;
+            bool canLoad = descriptor != null && descriptor.supportsLoadAnchor;
+
+            if (canLoad && !string.IsNullOrEmpty(layout.anchorGuid) && Guid.TryParse(layout.anchorGuid, out var guid))
+            {
+                var load = anchorManager.TryLoadAnchorAsync(new UnityEngine.XR.ARSubsystems.SerializableGuid(guid)).GetAwaiter();
+                float timeout = Time.time + 8f;
+                while (!load.IsCompleted && Time.time < timeout)
+                    yield return null;
+                if (load.IsCompleted)
+                {
+                    var loaded = load.GetResult();
+                    if (loaded.status.IsSuccess() && loaded.value != null)
+                    {
+                        var anchor = loaded.value;
+                        float tracking = Time.time + 5f;
+                        while (anchor != null && anchor.trackingState != TrackingState.Tracking && Time.time < tracking)
+                            yield return null;
+                        if (anchor != null && anchor.trackingState == TrackingState.Tracking)
+                        {
+                            anchorTransform = anchor.transform;
+                            frame = new Pose(anchor.transform.position, anchor.transform.rotation);
+                        }
+                    }
+                    else
+                    {
+                        Debug.LogWarning("[Horreur] Ancre de la pièce introuvable : " + loaded.status);
+                    }
+                }
+            }
+            else if (!canLoad)
+            {
+                // Pas d'ancres persistantes (éditeur) : on réutilise le repère de la dernière session.
+                frame = new Pose(layout.lastFramePosition, layout.lastFrameRotation);
+            }
+
+            if (frame.HasValue)
+            {
+                ApplyManualRoom(layout, frame.Value, anchorTransform);
+                Debug.Log("[Horreur] Pièce enregistrée chargée" + (anchorTransform != null ? " (ancre retrouvée)." : "."));
+                yield break;
+            }
+
+            // Ancre perdue : recaler avec 2 coins, ou tout rescanner.
+            var previous = Phase;
+            Phase = GamePhase.Calibration;
+            hud.Show(k_Title, "Ta pièce enregistrée n'a pas été retrouvée automatiquement.",
+                "Gâchette : recaler (toucher les coins 1 et 2)\nB / Y : refaire un scan complet", HUD.Orange);
+            yield return null;
+            while (true)
+            {
+                if (HorrorInput.AnyTriggerPressed)
+                {
+                    yield return null;
+                    var newFrame = default(Pose);
+                    yield return calibrator.RunRealign(layout, f => newFrame = f);
+                    yield return SaveAndApplyRoom(layout, newFrame);
+                    break;
+                }
+                if (HorrorInput.AnySecondaryPressed)
+                {
+                    yield return null;
+                    yield return ScanRoom();
+                    break;
+                }
+                yield return null;
+            }
+            Phase = previous;
+        }
+
+        void ApplyManualRoom(RoomLayout layout, Pose frame, Transform anchor)
+        {
+            manualRoom.Apply(layout, frame, anchor);
+            room.manualRoom = manualRoom;
+            // La pièce manuelle remplace les données du Quest (sinon double assombrissement).
+            if (room.planeManager != null) { room.planeManager.SetTrackablesActive(false); room.planeManager.enabled = false; }
+            if (room.boundingBoxManager != null) { room.boundingBoxManager.SetTrackablesActive(false); room.boundingBoxManager.enabled = false; }
+            if (room.meshManager != null) { room.meshManager.DestroyAllMeshes(); room.meshManager.enabled = false; }
+        }
+
+        /// <summary>Relance le scan manuel depuis le menu (bouton B/Y, ou tests).</summary>
+        public void RescanRoom()
+        {
+            if (Phase == GamePhase.Menu && !m_Rebuilding && calibrator != null && manualRoom != null)
+                StartCoroutine(RescanFromMenu());
+        }
+
+        IEnumerator RescanFromMenu()
+        {
+            m_Rebuilding = true;
+            yield return null;
+            yield return ScanRoom();
+            Phase = GamePhase.Scanning;
+            yield return BuildRoomNavMesh();
+            m_Rebuilding = false;
+            EnterMenu();
+        }
+
+        /// <summary>Demande au Quest de masquer le Guardian (autorisé pour les applis en passthrough).</summary>
+        void SuppressBoundary()
         {
 #if HORROR_META_OPENXR && (UNITY_ANDROID || UNITY_EDITOR)
-            if (arSession != null && arSession.subsystem is UnityEngine.XR.OpenXR.Features.Meta.MetaOpenXRSessionSubsystem meta)
-                meta.TryRequestSceneCapture();
+            if (!UnityEngine.XR.XRSettings.isDeviceActive)
+                return;
+            try
+            {
+                var settings = UnityEngine.XR.OpenXR.OpenXRSettings.Instance;
+                var feature = settings != null ? settings.GetFeature<UnityEngine.XR.OpenXR.Features.Meta.BoundaryVisibilityFeature>() : null;
+                if (feature != null && feature.enabled)
+                {
+                    var result = feature.TryRequestBoundaryVisibility(UnityEngine.XR.OpenXR.Features.Meta.XrBoundaryVisibility.VisibilitySuppressed);
+                    Debug.Log("[Horreur] Demande de masquage du Guardian : " + result);
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning("[Horreur] Masquage du Guardian impossible : " + e.Message);
+            }
 #endif
         }
 
@@ -241,13 +492,17 @@ namespace HorrorMR
         {
             Phase = GamePhase.Menu;
             int s = Mathf.RoundToInt(survivalSeconds);
-            string roomInfo = room.UsedFallback
-                ? "Pièce non scannée : zone de jeu de secours."
-                : $"Pièce : {room.PlaneCount} surfaces, {room.BoxCount} meubles, maillage {(room.MeshCount > 0 ? "oui" : "non")}.";
+            string roomInfo = room.UsingManualRoom
+                ? $"Pièce scannée à la main : {manualRoom.Layout.Width:F1} x {manualRoom.Layout.depth:F1} m, {manualRoom.Layout.furniture.Count} meuble(s)."
+                : room.UsedFallback
+                    ? "Pièce non scannée : zone de jeu de secours."
+                    : $"Pièce du Quest : {room.PlaneCount} surfaces, {room.BoxCount} meubles, maillage {(room.MeshCount > 0 ? "oui" : "non")}.";
+            if (manualRoom != null)
+                manualRoom.SetOutlinesVisible(true);
             hud.Show(k_Title,
                 $"Une peluche géante rôde dans la pièce.\nSurvis {s / 60}:{s % 60:00}, puis trouve l'arme et abats-la.",
                 "ATTENTION : expérience d'horreur, déconseillée aux personnes cardiaques ou sensibles. Dégage la zone de jeu.\n" +
-                roomInfo + "\nGâchette : commencer",
+                roomInfo + "\nGâchette : commencer      B / Y : refaire le scan de la pièce",
                 HUD.White);
             horrorAudio.SetAmbience(0.3f);
         }
@@ -297,6 +552,9 @@ namespace HorrorMR
         IEnumerator IntroRoutine()
         {
             Phase = GamePhase.Intro;
+            if (manualRoom != null)
+                manualRoom.SetOutlinesVisible(false);
+            SuppressBoundary();
             player.CalibrateStanding(room.FloorY);
             horrorAudio.PlayUI(assets.startSting, 1f);
             horrorAudio.SetAmbience(0.6f);
@@ -492,7 +750,9 @@ namespace HorrorMR
                         break;
                     if (HorrorInput.AnyTriggerPressed)
                         StartRound();
-                    else if (now >= m_NextRoomCheck)
+                    else if (HorrorInput.AnySecondaryPressed)
+                        RescanRoom();
+                    else if (!room.UsingManualRoom && now >= m_NextRoomCheck)
                     {
                         // Le Quest peut encore compléter la pièce : on recalcule tant qu'on est au menu.
                         m_NextRoomCheck = now + 3f;
